@@ -14,6 +14,7 @@ use style::dom::OpaqueNode;
 use style::properties::ComputedValues;
 use style::values::computed::Overflow;
 use style_traits::CSSPixel;
+use unicode_bidi::Level;
 use webrender_traits::display_list::ScrollSensitivity;
 
 use crate::cell::ArcRefCell;
@@ -123,7 +124,7 @@ impl BoxTree {
         #[allow(clippy::enum_variant_names)]
         enum UpdatePoint {
             AbsolutelyPositionedBlockLevelBox(ArcRefCell<BlockLevelBox>),
-            AbsolutelyPositionedInlineLevelBox(ArcRefCell<InlineItem>),
+            AbsolutelyPositionedInlineLevelBox(ArcRefCell<InlineItem>, usize),
             AbsolutelyPositionedFlexLevelBox(ArcRefCell<FlexLevelBox>),
         }
 
@@ -183,11 +184,12 @@ impl BoxTree {
                     },
                     LayoutBox::InlineBox(_) => return None,
                     LayoutBox::InlineLevel(inline_level_box) => match &*inline_level_box.borrow() {
-                        InlineItem::OutOfFlowAbsolutelyPositionedBox(_)
+                        InlineItem::OutOfFlowAbsolutelyPositionedBox(_, text_offset_index, _)
                             if box_style.position.is_absolutely_positioned() =>
                         {
                             UpdatePoint::AbsolutelyPositionedInlineLevelBox(
                                 inline_level_box.clone(),
+                                *text_offset_index,
                             )
                         },
                         _ => return None,
@@ -219,10 +221,15 @@ impl BoxTree {
                                 out_of_flow_absolutely_positioned_box,
                             );
                     },
-                    UpdatePoint::AbsolutelyPositionedInlineLevelBox(inline_level_box) => {
+                    UpdatePoint::AbsolutelyPositionedInlineLevelBox(
+                        inline_level_box,
+                        text_offset_index,
+                    ) => {
                         *inline_level_box.borrow_mut() =
                             InlineItem::OutOfFlowAbsolutelyPositionedBox(
                                 out_of_flow_absolutely_positioned_box,
+                                text_offset_index,
+                                Level::ltr(), /* Will be assigned later, if necessary. */
                             );
                     },
                     UpdatePoint::AbsolutelyPositionedFlexLevelBox(flex_level_box) => {

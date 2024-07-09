@@ -21,6 +21,7 @@ use style::computed_values::word_break::T as WordBreak;
 use style::properties::ComputedValues;
 use style::str::char_is_whitespace;
 use style::values::computed::OverflowWrap;
+use unicode_bidi::{BidiInfo, Level};
 use unicode_script::Script;
 use xi_unicode::linebreak_property;
 
@@ -73,6 +74,9 @@ pub(crate) struct TextRunSegment {
     #[serde(skip_serializing)]
     pub script: Script,
 
+    /// The bidi Level of this segment.
+    pub bidi_level: Level,
+
     /// The range of bytes in the parent [`super::InlineFormattingContext`]'s text content.
     pub range: Range<usize>,
 
@@ -85,10 +89,11 @@ pub(crate) struct TextRunSegment {
 }
 
 impl TextRunSegment {
-    fn new(font_index: usize, script: Script, start_offset: usize) -> Self {
+    fn new(font_index: usize, script: Script, bidi_level: Level, start_offset: usize) -> Self {
         Self {
-            script,
             font_index,
+            script,
+            bidi_level,
             range: start_offset..start_offset,
             runs: Vec::new(),
             break_at_start: false,
@@ -102,10 +107,15 @@ impl TextRunSegment {
         &mut self,
         new_font: &FontRef,
         script: Script,
+        bidi_level: Level,
         fonts: &[FontKeyAndMetrics],
     ) -> bool {
         fn is_specific(script: Script) -> bool {
             script != Script::Common && script != Script::Inherited
+        }
+
+        if bidi_level != self.bidi_level {
+            return false;
         }
 
         let current_font_key_and_metrics = &fonts[self.font_index];
@@ -151,6 +161,7 @@ impl TextRunSegment {
                 run.glyph_store.clone(),
                 text_run,
                 self.font_index,
+                self.bidi_level,
             );
         }
     }
@@ -328,6 +339,7 @@ impl TextRun {
         font_context: &FontContext<FontCacheThread>,
         linebreaker: &mut LineBreaker,
         font_cache: &mut Vec<FontKeyAndMetrics>,
+        bidi_info: &BidiInfo,
     ) {
         let inherited_text_style = self.parent_style.get_inherited_text().clone();
         let letter_spacing = if inherited_text_style.letter_spacing.0.px() != 0. {
@@ -349,7 +361,7 @@ impl TextRun {
         let style_word_spacing: Option<Au> = specified_word_spacing.to_length().map(|l| l.into());
 
         let segments = self
-            .segment_text_by_font(formatting_context_text, font_context, font_cache)
+            .segment_text_by_font(formatting_context_text, font_context, font_cache, bidi_info)
             .into_iter()
             .map(|(mut segment, font)| {
                 let word_spacing = style_word_spacing.unwrap_or_else(|| {
@@ -360,6 +372,10 @@ impl TextRun {
                     specified_word_spacing.to_used_value(Au::from_f64_px(space_width))
                 });
 
+                let mut flags = flags.clone();
+                if segment.bidi_level.is_rtl() {
+                    flags.insert(ShapingFlags::RTL_FLAG);
+                }
                 let shaping_options = ShapingOptions {
                     letter_spacing,
                     word_spacing,
@@ -390,6 +406,7 @@ impl TextRun {
         formatting_context_text: &str,
         font_context: &FontContext<FontCacheThread>,
         font_cache: &mut Vec<FontKeyAndMetrics>,
+        bidi_info: &BidiInfo,
     ) -> Vec<(TextRunSegment, FontRef)> {
         let font_group = font_context.font_group(self.parent_style.clone_font());
         let mut current: Option<(TextRunSegment, FontRef)> = None;
@@ -416,8 +433,12 @@ impl TextRun {
 
             // If the existing segment is compatible with the character, keep going.
             let script = Script::from(character);
+            let bidi_level = bidi_info.levels[current_byte_index];
             if let Some(current) = current.as_mut() {
-                if current.0.update_if_compatible(&font, script, font_cache) {
+                if current
+                    .0
+                    .update_if_compatible(&font, script, bidi_level, font_cache)
+                {
                     continue;
                 }
             }
@@ -433,7 +454,7 @@ impl TextRun {
                 None => self.text_range.start,
             };
             let new = (
-                TextRunSegment::new(font_index, script, start_byte_index),
+                TextRunSegment::new(font_index, script, bidi_level, start_byte_index),
                 font,
             );
             if let Some(mut finished) = current.replace(new) {
@@ -449,7 +470,12 @@ impl TextRun {
             current = font_group.write().first(font_context).map(|font| {
                 let font_index = add_or_get_font(&font, font_cache);
                 (
-                    TextRunSegment::new(font_index, Script::Common, self.text_range.start),
+                    TextRunSegment::new(
+                        font_index,
+                        Script::Common,
+                        Level::ltr(),
+                        self.text_range.start,
+                    ),
                     font,
                 )
             })
