@@ -124,6 +124,7 @@ class ServoHandler(mozlog.reader.LogHandler):
         self.subtest_failures = collections.defaultdict(list)
         self.tests_with_failing_subtests = []
         self.unexpected_results: List[UnexpectedResult] = []
+        self.skip_reasons = collections.defaultdict(list)
 
         self.expected = {
             'OK': 0,
@@ -171,7 +172,7 @@ class ServoHandler(mozlog.reader.LogHandler):
         del self.running_tests[data['thread']]
 
         if test_status == "SKIP":
-            print(data["message"])
+            self.skip_reasons[data["message"]] += [test_path]
 
         had_expected_test_result = self.data_was_for_expected_result(data)
         subtest_failures = self.subtest_failures.pop(test_path, [])
@@ -324,6 +325,11 @@ class ServoFormatter(mozlog.formatters.base.BaseFormatter, ServoHandler):
             self.completed_tests, (data["time"] - self.suite_start_time) / 1000)
         output += u"  \u2022 %i ran as expected. %i tests skipped.\n" % (
             sum(self.expected.values()), self.expected['SKIP'])
+
+        for reason, paths in self.skip_reasons.items():
+            output += "   %s:\n" % reason
+            for path in paths:
+                output += "     %s\n" % path
 
         def text_for_unexpected_list(text, section):
             tests = self.unexpected_tests[section]
