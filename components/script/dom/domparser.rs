@@ -80,6 +80,7 @@ impl DOMParserMethods for DOMParser {
                     None,
                     None,
                     Default::default(),
+                    false,
                 );
                 ServoParser::parse_html_document(&document, Some(s), url);
                 document.set_ready_state(DocumentReadyState::Complete);
@@ -101,6 +102,7 @@ impl DOMParserMethods for DOMParser {
                     None,
                     None,
                     Default::default(),
+                    false,
                 );
                 ServoParser::parse_xml_document(&document, Some(s), url);
                 document.set_ready_state(DocumentReadyState::Complete);

@@ -1529,6 +1529,7 @@ impl XMLHttpRequest {
             None,
             None,
             Default::default(),
+            false,
         )
     }
 

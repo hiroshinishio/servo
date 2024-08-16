@@ -3709,6 +3709,7 @@ impl ScriptThread {
             referrer_policy,
             Some(status_code),
             incomplete.canceller,
+            final_url.as_str() == "about:blank",
         );
         document.set_ready_state(DocumentReadyState::Loading);
 

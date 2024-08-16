@@ -476,6 +476,7 @@ pub struct Document {
     visibility_state: Cell<DocumentVisibilityState>,
     /// <https://www.iana.org/assignments/http-status-codes/http-status-codes.xhtml>
     status_code: Option<u16>,
+    inhibit_load_and_pageshow: bool,
 }
 
 #[derive(JSTraceable, MallocSizeOf)]
@@ -2323,7 +2324,7 @@ impl Document {
                 task!(fire_load_event: move || {
                     let document = document.root();
                     let window = document.window();
-                    if !window.is_alive() {
+                    if !window.is_alive() || document.inhibit_load_and_pageshow {
                         return;
                     }
 
@@ -2364,7 +2365,7 @@ impl Document {
 
         // Step 8.
         let document = Trusted::new(self);
-        if document.root().browsing_context().is_some() {
+        if document.root().browsing_context().is_some() && !self.inhibit_load_and_pageshow {
             self.window
                 .task_manager()
                 .dom_manipulation_task_source()
@@ -3153,6 +3154,7 @@ impl Document {
         referrer_policy: Option<ReferrerPolicy>,
         status_code: Option<u16>,
         canceller: FetchCanceller,
+        inhibit_load_and_pageshow: bool,
     ) -> Document {
         let url = url.unwrap_or_else(|| ServoUrl::parse("about:blank").unwrap());
 
@@ -3301,6 +3303,7 @@ impl Document {
             fonts: Default::default(),
             visibility_state: Cell::new(DocumentVisibilityState::Hidden),
             status_code,
+            inhibit_load_and_pageshow,
         }
     }
 
@@ -3440,6 +3443,7 @@ impl Document {
             None,
             None,
             Default::default(),
+            false,
         ))
     }
 
@@ -3459,6 +3463,7 @@ impl Document {
         referrer_policy: Option<ReferrerPolicy>,
         status_code: Option<u16>,
         canceller: FetchCanceller,
+        inhibit_load_and_pageshow: bool,
     ) -> DomRoot<Document> {
         Self::new_with_proto(
             window,
@@ -3476,6 +3481,7 @@ impl Document {
             referrer_policy,
             status_code,
             canceller,
+            inhibit_load_and_pageshow,
         )
     }
 
@@ -3496,6 +3502,7 @@ impl Document {
         referrer_policy: Option<ReferrerPolicy>,
         status_code: Option<u16>,
         canceller: FetchCanceller,
+        inhibit_load_and_pageshow: bool,
     ) -> DomRoot<Document> {
         let document = reflect_dom_object_with_proto(
             Box::new(Document::new_inherited(
@@ -3513,6 +3520,7 @@ impl Document {
                 referrer_policy,
                 status_code,
                 canceller,
+                inhibit_load_and_pageshow,
             )),
             window,
             proto,
@@ -3636,6 +3644,7 @@ impl Document {
                     None,
                     None,
                     Default::default(),
+                    false,
                 );
                 new_doc
                     .appropriate_template_contents_owner_document

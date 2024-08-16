@@ -157,6 +157,7 @@ impl DOMImplementationMethods for DOMImplementation {
             None,
             None,
             Default::default(),
+            false,
         );
 
         {
