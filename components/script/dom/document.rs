@@ -2324,7 +2324,7 @@ impl Document {
                 task!(fire_load_event: move || {
                     let document = document.root();
                     let window = document.window();
-                    if !window.is_alive() || document.inhibit_load_and_pageshow {
+                    if !window.is_alive() {
                         return;
                     }
 
@@ -2346,11 +2346,13 @@ impl Document {
                     // http://w3c.github.io/navigation-timing/#widl-PerformanceNavigationTiming-loadEventStart
                     update_with_current_time_ms(&document.load_event_start);
 
-                    debug!("About to dispatch load for {:?}", document.url());
-                    // FIXME(nox): Why are errors silenced here?
-                    let _ = window.dispatch_event_with_target_override(
-                        &event,
-                    );
+                    if !document.inhibit_load_and_pageshow {
+                        debug!("About to dispatch load for {:?}", document.url());
+                        // FIXME(nox): Why are errors silenced here?
+                        let _ = window.dispatch_event_with_target_override(
+                            &event,
+                        );
+                    }
 
                     // http://w3c.github.io/navigation-timing/#widl-PerformanceNavigationTiming-loadEventEnd
                     update_with_current_time_ms(&document.load_event_end);
