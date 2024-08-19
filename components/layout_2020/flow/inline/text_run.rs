@@ -6,6 +6,7 @@ use std::mem;
 use std::ops::Range;
 
 use app_units::Au;
+use base::text::is_bidi_control;
 use fonts::{
     FontCacheThread, FontContext, FontRef, GlyphRun, ShapingFlags, ShapingOptions,
     LAST_RESORT_GLYPH_ADVANCE,
@@ -209,7 +210,7 @@ impl TextRunSegment {
             text_style.overflow_wrap == OverflowWrap::Anywhere ||
             text_style.overflow_wrap == OverflowWrap::BreakWord;
 
-        let mut last_slice_end = self.range.start;
+        let mut last_slice = self.range.start..self.range.start;
         for break_index in linebreak_iter {
             if *break_index == self.range.start {
                 self.break_at_start = true;
@@ -217,12 +218,13 @@ impl TextRunSegment {
             }
 
             // Extend the slice to the next UAX#14 line break opportunity.
-            let mut slice = last_slice_end..*break_index;
+            let mut slice = last_slice.end..*break_index;
             let word = &formatting_context_text[slice.clone()];
 
             // Split off any trailing whitespace into a separate glyph run.
             let mut whitespace = slice.end..slice.end;
             let mut rev_char_indices = word.char_indices().rev().peekable();
+
             let ends_with_newline = rev_char_indices
                 .peek()
                 .map_or(false, |&(_, character)| character == '\n');
@@ -261,8 +263,8 @@ impl TextRunSegment {
                 continue;
             }
 
-            // Only advance the last_slice_end if we are not going to try to expand the slice.
-            last_slice_end = *break_index;
+            // Only advance the last slice if we are not going to try to expand the slice.
+            last_slice = slice.start..*break_index;
 
             // Push the non-whitespace part of the range.
             if !slice.is_empty() {
@@ -522,6 +524,10 @@ fn char_does_not_change_font(character: char) -> bool {
     if character == '\u{00A0}' {
         return true;
     }
+    if is_bidi_control(character) {
+        return false;
+    }
+
     let class = linebreak_property(character);
     class == XI_LINE_BREAKING_CLASS_CM ||
         class == XI_LINE_BREAKING_CLASS_GL ||

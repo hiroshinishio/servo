@@ -119,7 +119,7 @@ impl DisplayLayoutInternal {
 }
 
 /// Percentages resolved but not `auto` margins
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub(crate) struct PaddingBorderMargin {
     pub padding: LogicalSides<Au>,
     pub border: LogicalSides<Au>,
@@ -766,7 +766,7 @@ impl ComputedValuesExt for ComputedValues {
         ) {
             (UnicodeBidi::Normal, _) => ("", ""),
             (UnicodeBidi::Embed, Direction::Ltr) => ("\u{202a}", "\u{202c}"),
-            (UnicodeBidi::Embed, Direction::Rtl) => ("\u{202B}", "\u{202c}"),
+            (UnicodeBidi::Embed, Direction::Rtl) => ("\u{202b}", "\u{202c}"),
             (UnicodeBidi::Isolate, Direction::Ltr) => ("\u{2066}", "\u{2069}"),
             (UnicodeBidi::Isolate, Direction::Rtl) => ("\u{2067}", "\u{2069}"),
             (UnicodeBidi::BidiOverride, Direction::Ltr) => ("\u{202d}", "\u{202c}"),

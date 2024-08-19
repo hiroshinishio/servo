@@ -229,6 +229,9 @@ impl<'a> LineItemLayout<'a> {
             .map(|item| {
                 let level = match item {
                     LineItem::TextRun(_, text_run) => text_run.bidi_level,
+                    /// TODO: This level needs either to be last_level, or if there were
+                    /// unicode characters inserted for the inline box, we need to get the
+                    /// level from them.
                     LineItem::StartInlineBoxPaddingBorderMargin(_) => last_level,
                     LineItem::EndInlineBoxPaddingBorderMargin(_) => last_level,
                     LineItem::Atomic(_, atomic) => atomic.bidi_level,
