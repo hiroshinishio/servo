@@ -223,17 +223,17 @@ impl<'a> LineItemLayout<'a> {
         has_right_to_left_content: bool,
     ) -> Vec<Fragment> {
         //println!("-------------------------- ");
-        let mut last_level = Level::ltr();
+        let mut last_level: Level = Level::ltr();
         let levels: Vec<_> = line_items
             .iter()
             .map(|item| {
                 let level = match item {
                     LineItem::TextRun(_, text_run) => text_run.bidi_level,
-                    LineItem::StartInlineBoxPaddingBorderMargin(_) => Level::rtl(),
-                    LineItem::EndInlineBoxPaddingBorderMargin(_) => Level::rtl(),
+                    LineItem::StartInlineBoxPaddingBorderMargin(_) => last_level,
+                    LineItem::EndInlineBoxPaddingBorderMargin(_) => last_level,
                     LineItem::Atomic(_, atomic) => atomic.bidi_level,
-                    LineItem::AbsolutelyPositioned(_, positioned_box) => positioned_box.bidi_level,
-                    LineItem::Float(_, _) => {
+                    LineItem::AbsolutelyPositioned(..) => last_level,
+                    LineItem::Float(..) => {
                         // At this point the float is already positioned, so it doesn't really matter what
                         // position it's fragment has in the order of line items.
                         last_level
@@ -793,9 +793,6 @@ impl AtomicLineItem {
 
 pub(super) struct AbsolutelyPositionedLineItem {
     pub absolutely_positioned_box: ArcRefCell<AbsolutelyPositionedBox>,
-
-    /// The BiDi level of this [`AbsolutelyPositionedLineItem`] to enable reordering.
-    pub bidi_level: Level,
 }
 
 pub(super) struct FloatLineItem {

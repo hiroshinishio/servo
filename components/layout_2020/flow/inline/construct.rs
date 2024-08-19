@@ -148,12 +148,7 @@ impl InlineFormattingContextBuilder {
         let inline_level_box = ArcRefCell::new(InlineItem::OutOfFlowAbsolutelyPositionedBox(
             absolutely_positioned_box,
             self.current_text_offset,
-            Level::ltr(), /* This will be assigned later if necessary. */
         ));
-
-        // Push an object replacement character for this atomic, which will ensure that the line breaker
-        // inserts a line breaking opportunity here.
-        self.push_control_character_string("\u{fffc}");
 
         self.inline_items.push(inline_level_box.clone());
         inline_level_box

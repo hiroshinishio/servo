@@ -186,7 +186,6 @@ pub(crate) enum InlineItem {
     OutOfFlowAbsolutelyPositionedBox(
         ArcRefCell<AbsolutelyPositionedBox>,
         usize, /* offset_in_text */
-        Level, /* bidi_level */
     ),
     OutOfFlowFloatBox(FloatBox),
     Atomic(
@@ -1540,11 +1539,12 @@ impl InlineFormattingContext {
                             Some(add_or_get_font(&font, &mut font_metrics));
                     }
                 },
-                InlineItem::Atomic(_, index_in_text, bidi_level) |
-                InlineItem::OutOfFlowAbsolutelyPositionedBox(_, index_in_text, bidi_level) => {
+                InlineItem::Atomic(_, index_in_text, bidi_level) => {
                     *bidi_level = bidi_info.levels[*index_in_text];
                 },
-                InlineItem::OutOfFlowFloatBox(_) | InlineItem::EndInlineBox => {},
+                InlineItem::OutOfFlowAbsolutelyPositionedBox(..) |
+                InlineItem::OutOfFlowFloatBox(_) |
+                InlineItem::EndInlineBox => {},
             }
         }
 
@@ -1672,12 +1672,11 @@ impl InlineFormattingContext {
                         *bidi_level,
                     );
                 },
-                InlineItem::OutOfFlowAbsolutelyPositionedBox(positioned_box, _, bidi_level) => {
+                InlineItem::OutOfFlowAbsolutelyPositionedBox(positioned_box, _) => {
                     ifc.push_line_item_to_unbreakable_segment(LineItem::AbsolutelyPositioned(
                         ifc.current_inline_box_identifier(),
                         AbsolutelyPositionedLineItem {
                             absolutely_positioned_box: positioned_box.clone(),
-                            bidi_level: *bidi_level,
                         },
                     ));
                 },
